@@ -665,15 +665,25 @@
 
   const url = "https?:\\/\\/(?:[\\w-]+(\\.[\\w-]+)+|localhost|\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})(:\\d+)?\\S*";
   const urlRegex = new RegExp(`^${url}$`, 'i');
-  const isURL = urlRegex.test(input);
+
+  // Parse markdown link syntax: [name](url)
+  const mdMatch = input.match(/^\[([^\]]+)\]\((.*)\)$/);
+  let parsedName = '';
+  let parsedUrl = '';
+  if (mdMatch) {
+    parsedName = mdMatch[1];
+    parsedUrl = mdMatch[2];
+  } else if (urlRegex.test(input)) {
+    parsedUrl = input;
+  }
 
   // Build new bookmark object
   const newItem = {};
-  newItem.name = pageTitle || input;
-  if (isURL) {
-    newItem.url = input;
+  newItem.name = parsedName || pageTitle || input;
+  if (parsedUrl) {
+    newItem.url = parsedUrl;
     // Extract domain for icon
-    const stripped = input.replace(/^https?:\/\//, '').replace(/^[^@]*@/, '');
+    const stripped = parsedUrl.replace(/^https?:\/\//, '').replace(/^[^@]*@/, '');
     const domainMatch = stripped.match(/^([a-zA-Z0-9.-]+)/);
     if (domainMatch) newItem.icon = domainMatch[1];
   }
@@ -727,10 +737,16 @@ if [ "$action" != "add" ]; then
 fi
 
 if [ "$is_url" = "1" ]; then
-  title=$(curl -s ${add_item} | grep -o '&lt;title&gt;[^&lt;]*&lt;/title&gt;' | head -n 1 | sed -e 's/&lt;title&gt;\(.*\)&lt;\/title&gt;/\1/' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  # Extract URL from markdown link syntax [name](url) or use as-is
+  url_value="$add_item"
+  if echo "$add_item" | grep -qE '^\[.+\]\(.+\)$'; then
+    url_value=$(echo "$add_item" | sed -E 's/^\[.*\]\((.+)\)$/\1/')
+  else
+    title=$(curl -s ${add_item} | grep -o '&lt;title&gt;[^&lt;]*&lt;/title&gt;' | head -n 1 | sed -e 's/&lt;title&gt;\(.*\)&lt;\/title&gt;/\1/' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  fi
 
   # Extract domain and fetch favicon in background
-  domain=$(echo "$add_item" | sed -E 's|^https?://||' | sed -E 's|^[^@]*@||' | grep -oE '^[a-zA-Z0-9.-]+')
+  domain=$(echo "$url_value" | sed -E 's|^https?://||' | sed -E 's|^[^@]*@||' | grep -oE '^[a-zA-Z0-9.-]+')
   if [ -n "$domain" ] &amp;&amp; echo "$domain" | grep -qE '^[a-zA-Z0-9.-]+$'; then
     mkdir -p "${alfred_workflow_cache}/favicons"
     tmpfile="${alfred_workflow_cache}/favicons/.tmp.${domain}.png"
@@ -795,8 +811,9 @@ printf '{"alfredworkflow": {"arg": "", "variables": {"page_title": "%s", "files_
 
   const url = "https?:\\/\\/(?:[\\w-]+(\\.[\\w-]+)+|localhost|\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})(:\\d+)?\\S*";
   const urlRegex = new RegExp(`^${url}$`, 'i');
+  const mdMatch = input.match(/^\[([^\]]+)\]\((.*)\)$/);
 
-  const isURL = urlRegex.test(input);
+  const isURL = urlRegex.test(input) || (mdMatch &amp;&amp; urlRegex.test(mdMatch[2]));
 
   const listName = filepath.match(/.+\/(.+)\.json/i)?.[1];
 
