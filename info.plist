@@ -722,7 +722,7 @@
 if [ "$action" != "add" ]; then
   IFS=$'\n'
 
-  files=($(ls "${folder_path}"/*.json 2>/dev/null))
+  files=($(ls "${folder_path}"/*.json 2&gt;/dev/null))
   files_list=$(printf '%s\\n' "${files[@]}")
 fi
 
@@ -1113,7 +1113,7 @@ printf '{"alfredworkflow": {"arg": "", "variables": {"page_title": "%s", "files_
 
 IFS=$'\n'
 
-files=($(ls "${folder_path}"/*.json 2>/dev/null))
+files=($(ls "${folder_path}"/*.json 2&gt;/dev/null))
 files_list=$(printf '%s\\n' "${files[@]}")
 
 IFS=$'\t' read -r title url &lt;&lt;&lt; "{query}"
@@ -1441,14 +1441,14 @@ fi
 
 IFS=$'\n'
 
-files=($(ls "${folder_path}"/*.json 2>/dev/null))
+files=($(ls "${folder_path}"/*.json 2&gt;/dev/null))
 
 printf '{"items":['
 
 for file in "${files[@]}"; do
   filename=$(basename "$file")
-  count=$(grep -c '"name"' "$file" 2>/dev/null || echo 0)
-  count_checked=$(grep -c '"checked": true\|"checked":true' "$file" 2>/dev/null || echo 0)
+  count=$(grep -c '"name"' "$file" 2&gt;/dev/null || echo 0)
+  count_checked=$(grep -c '"checked": true\|"checked":true' "$file" 2&gt;/dev/null || echo 0)
   count_unchecked=$((count - count_checked))
 
   printf '{
@@ -1561,7 +1561,7 @@ printf ']}'</string>
 				<key>script</key>
 				<string>#!/bin/bash
 
-echo '[]' > "${folder_path}/${1}.json"</string>
+echo '[]' &gt; "${folder_path}/${1}.json"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
@@ -2834,7 +2834,7 @@ Workflow that helps you manage your links and quick search notes.
 		</dict>
 	</array>
 	<key>version</key>
-	<string>0.0.0</string>
+	<string>1.0.0</string>
 	<key>webaddress</key>
 	<string>http://colomolome.com</string>
 </dict>
