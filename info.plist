@@ -1447,8 +1447,8 @@ printf '{"items":['
 
 for file in "${files[@]}"; do
   filename=$(basename "$file")
-  count=$(grep -c '"name"' "$file" 2&gt;/dev/null || echo 0)
-  count_checked=$(grep -c '"checked": true\|"checked":true' "$file" 2&gt;/dev/null || echo 0)
+  count=$(grep -c '"name"' "$file" 2&gt;/dev/null) || count=0
+  count_checked=$(grep -c '"checked": true\|"checked":true' "$file" 2&gt;/dev/null) || count_checked=0
   count_unchecked=$((count - count_checked))
 
   printf '{
