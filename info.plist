@@ -638,13 +638,13 @@
 		</array>
 	</dict>
 	<key>createdby</key>
-	<string>Yuri Mazursky</string>
+	<string>Zeid Derhally</string>
 	<key>description</key>
 	<string></string>
 	<key>disabled</key>
 	<false/>
 	<key>name</key>
-	<string>Bookmark Vault</string>
+	<string>Bookmarks</string>
 	<key>objects</key>
 	<array>
 		<dict>
@@ -1518,7 +1518,7 @@ printf ']}'</string>
 				<key>subtext</key>
 				<string></string>
 				<key>title</key>
-				<string>Bookmark Vault</string>
+				<string>Bookmarks</string>
 				<key>type</key>
 				<integer>0</integer>
 				<key>withspace</key>
@@ -2403,9 +2403,9 @@ cat "${file_path}"</string>
 		</dict>
 	</array>
 	<key>readme</key>
-	<string>![Bookmark Vault](./icon.png)
+	<string>![Bookmarks](./icon.png)
 
-# Bookmark Vault
+# Bookmarks
 Workflow that helps you manage your links and quick search notes.
 
 [Description](https://github.com/colomolo/alfred-bookmarks)</string>
@@ -2836,6 +2836,6 @@ Workflow that helps you manage your links and quick search notes.
 	<key>version</key>
 	<string>1.0.0</string>
 	<key>webaddress</key>
-	<string>http://colomolome.com</string>
+	<string>https://github.com/derhally/alfred-bookmarks</string>
 </dict>
 </plist>
