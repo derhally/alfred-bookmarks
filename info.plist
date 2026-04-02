@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>bundleid</key>
-	<string>com.colomolome.bookmarks</string>
+	<string>com.derhally.bookmarks</string>
 	<key>category</key>
 	<string>Productivity</string>
 	<key>connections</key>
@@ -2408,7 +2408,7 @@ cat "${file_path}"</string>
 # Bookmarks
 Workflow that helps you manage your links and quick search notes.
 
-[Description](https://github.com/colomolo/alfred-bookmarks)</string>
+[Description](https://github.com/derhally/alfred-bookmarks)</string>
 	<key>uidata</key>
 	<dict>
 		<key>040F31C0-FABD-49FE-B8BD-5EA505D53EE4</key>
