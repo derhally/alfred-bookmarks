@@ -404,6 +404,16 @@
 				<key>vitoclose</key>
 				<false/>
 			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>5C3950D1-71B8-4B80-AFDF-49BF85414871</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
 		</array>
 		<key>A28A9626-BA46-4966-9442-987A799F8472</key>
 		<array>
@@ -665,15 +675,25 @@
 
   const url = "https?:\\/\\/(?:[\\w-]+(\\.[\\w-]+)+|localhost|\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})(:\\d+)?\\S*";
   const urlRegex = new RegExp(`^${url}$`, 'i');
-  const isURL = urlRegex.test(input);
+
+  // Parse markdown link syntax: [name](url)
+  const mdMatch = input.match(/^\[([^\]]+)\]\((.*)\)$/);
+  let parsedName = '';
+  let parsedUrl = '';
+  if (mdMatch) {
+    parsedName = mdMatch[1];
+    parsedUrl = mdMatch[2];
+  } else if (urlRegex.test(input)) {
+    parsedUrl = input;
+  }
 
   // Build new bookmark object
   const newItem = {};
-  newItem.name = pageTitle || input;
-  if (isURL) {
-    newItem.url = input;
+  newItem.name = parsedName || pageTitle || input;
+  if (parsedUrl) {
+    newItem.url = parsedUrl;
     // Extract domain for icon
-    const stripped = input.replace(/^https?:\/\//, '').replace(/^[^@]*@/, '');
+    const stripped = parsedUrl.replace(/^https?:\/\//, '').replace(/^[^@]*@/, '');
     const domainMatch = stripped.match(/^([a-zA-Z0-9.-]+)/);
     if (domainMatch) newItem.icon = domainMatch[1];
   }
@@ -727,10 +747,16 @@ if [ "$action" != "add" ]; then
 fi
 
 if [ "$is_url" = "1" ]; then
-  title=$(curl -s ${add_item} | grep -o '&lt;title&gt;[^&lt;]*&lt;/title&gt;' | head -n 1 | sed -e 's/&lt;title&gt;\(.*\)&lt;\/title&gt;/\1/' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  # Extract URL from markdown link syntax [name](url) or use as-is
+  url_value="$add_item"
+  if echo "$add_item" | grep -qE '^\[.+\]\(.+\)$'; then
+    url_value=$(echo "$add_item" | sed -E 's/^\[.*\]\((.+)\)$/\1/')
+  else
+    title=$(curl -s ${add_item} | grep -o '&lt;title&gt;[^&lt;]*&lt;/title&gt;' | head -n 1 | sed -e 's/&lt;title&gt;\(.*\)&lt;\/title&gt;/\1/' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  fi
 
   # Extract domain and fetch favicon in background
-  domain=$(echo "$add_item" | sed -E 's|^https?://||' | sed -E 's|^[^@]*@||' | grep -oE '^[a-zA-Z0-9.-]+')
+  domain=$(echo "$url_value" | sed -E 's|^https?://||' | sed -E 's|^[^@]*@||' | grep -oE '^[a-zA-Z0-9.-]+')
   if [ -n "$domain" ] &amp;&amp; echo "$domain" | grep -qE '^[a-zA-Z0-9.-]+$'; then
     mkdir -p "${alfred_workflow_cache}/favicons"
     tmpfile="${alfred_workflow_cache}/favicons/.tmp.${domain}.png"
@@ -795,8 +821,9 @@ printf '{"alfredworkflow": {"arg": "", "variables": {"page_title": "%s", "files_
 
   const url = "https?:\\/\\/(?:[\\w-]+(\\.[\\w-]+)+|localhost|\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})(:\\d+)?\\S*";
   const urlRegex = new RegExp(`^${url}$`, 'i');
+  const mdMatch = input.match(/^\[([^\]]+)\]\((.*)\)$/);
 
-  const isURL = urlRegex.test(input);
+  const isURL = urlRegex.test(input) || (mdMatch &amp;&amp; urlRegex.test(mdMatch[2]));
 
   const listName = filepath.match(/.+\/(.+)\.json/i)?.[1];
 
@@ -1404,7 +1431,7 @@ printf '{ "alfredworkflow": { "arg": "", "variables": { "items": "%s" } } }' "$i
 				<key>alfredfiltersresults</key>
 				<true/>
 				<key>alfredfiltersresultsmatchmode</key>
-				<integer>0</integer>
+				<integer>2</integer>
 				<key>argumenttreatemptyqueryasnil</key>
 				<true/>
 				<key>argumenttrimmode</key>
@@ -1426,91 +1453,126 @@ printf '{ "alfredworkflow": { "arg": "", "variables": { "items": "%s" } } }' "$i
 				<key>runningsubtext</key>
 				<string>Loading lists…</string>
 				<key>script</key>
-				<string>#!/bin/bash
+				<string>function run(argv) {
+  ObjC.import('stdlib');
+  ObjC.import('Foundation');
 
-if [[ -z $folder_path ]]; then
-  printf '{"items":[
-            {
-              "arg":"",
-              "valid":"no",
-              "title":"Please specify existing folder in workflow config"
-            }
-          ]}'
-  exit
-fi
+  var folderPath = '';
+  try { folderPath = $.getenv('folder_path'); } catch (e) {}
 
-IFS=$'\n'
-
-files=($(ls "${folder_path}"/*.json 2&gt;/dev/null))
-
-printf '{"items":['
-
-for file in "${files[@]}"; do
-  filename=$(basename "$file")
-  count=$(grep -c '"name"' "$file" 2&gt;/dev/null) || count=0
-  count_checked=$(grep -c '"checked": true\|"checked":true' "$file" 2&gt;/dev/null) || count_checked=0
-  count_unchecked=$((count - count_checked))
-
-  printf '{
-    "arg":"%s",
-    "valid":"yes",
-    "title":"%s [%s]",
-    "mods":{
-      "cmd":{
-        "subtitle":"⌘: Open in editor",
-        "variables":{
-          "list_action":"external"
-        }
-      },
-      "shift":{
-        "subtitle":"⇧: Show with checked items [%s]",
-        "variables":{
-          "list_action":"open",
-          "show_checked":"true"
-        }
-      },
-      "cmd+shift":{
-        "subtitle":"⌘⇧: Open all items",
-        "variables":{
-          "list_action":"open_all"
-        }
-      },
-      "cmd+alt+shift":{
-        "subtitle":"⌘⌥⇧: DELETE list permanently",
-        "icon": {
-          "path":"./delete.png"
-        },
-        "variables":{
-          "list_action":"delete"
-        }
-      }
-    },
-    "variables":{
-      "list_action":"open",
-      "show_checked":"false"
-    }
-  },' "$file" "${filename%.*}" "$count_unchecked" "$count"
-done
-
-printf '{
-  "arg":"",
-  "valid":"yes",
-  "title":"Create new list",
-  "icon":{"path":"./create-new.png"},
-  "mods":{
-    "cmd":{"subtitle":"", "valid":"no", "arg":""},
-    "shift":{"subtitle":"", "valid":"no", "arg":""},
-    "cmd+shift":{"subtitle":"", "valid":"no", "arg":""},
-    "cmd+alt+shift":{"subtitle":"", "valid":"no", "arg":""}
-  },
-  "variables":{
-    "list_action":"create"
+  if (!folderPath) {
+    return JSON.stringify({items: [{arg: '', valid: false, title: 'Please specify existing folder in workflow config'}]});
   }
-}'
 
-printf ']}'</string>
+  var cacheDir = '';
+  try { cacheDir = $.getenv('alfred_workflow_cache'); } catch (e) {}
+
+  const fm = $.NSFileManager.defaultManager;
+
+  function resolveIconPath(item) {
+    if (item.checked !== undefined) {
+      return item.checked ? './checked.png' : './unchecked.png';
+    }
+    if (item.icon &amp;&amp; cacheDir) {
+      var faviconPath = cacheDir + '/favicons/' + item.icon + '.png';
+      if (fm.fileExistsAtPath(faviconPath)) return faviconPath;
+    }
+    if (item.url) {
+      var stripped = item.url.replace(/^https?:\/\//, '').replace(/^[^@]*@/, '');
+      var match = stripped.match(/^([a-zA-Z0-9.-]+)/);
+      if (match &amp;&amp; cacheDir) {
+        var domainFavicon = cacheDir + '/favicons/' + match[1] + '.png';
+        if (fm.fileExistsAtPath(domainFavicon)) return domainFavicon;
+      }
+      return './link.png';
+    }
+    return null;
+  }
+
+  var showChecked = false;
+  try { showChecked = $.getenv('show_checked') === 'true'; } catch (e) {}
+
+  var items = [];
+  var nsPath = $(folderPath).stringByExpandingTildeInPath;
+  var contents = fm.contentsOfDirectoryAtPathError(nsPath, null);
+  if (contents) {
+    for (var i = 0; i &lt; contents.count; i++) {
+      var filename = contents.objectAtIndex(i).js;
+      if (!filename.endsWith('.json')) continue;
+      var listName = filename.replace(/\.json$/, '');
+      var filePath = folderPath + '/' + filename;
+
+      var fileContent = $.NSString.stringWithContentsOfFileEncodingError(filePath, $.NSUTF8StringEncoding, null);
+      if (!fileContent) continue;
+
+      var bookmarks = [];
+      try { bookmarks = JSON.parse(fileContent.js); } catch (e) { continue; }
+
+      bookmarks.forEach(function(item) {
+        var isCheckbox = item.checked !== undefined;
+        var isChecked = item.checked === true;
+        if (isChecked &amp;&amp; !showChecked) return;
+
+        var href = item.url || null;
+        var text = item.name || '';
+        var iconPath = resolveIconPath(item);
+        var parsedItem = JSON.stringify(item, null, 0);
+
+        var currentItem = {
+          title: text,
+          subtitle: (href &amp;&amp; href !== text ? href + ' — ' : '') + listName,
+          match: text + ' ' + listName + (href ? ' ' + href : ''),
+          text: { copy: href || text },
+          quicklookurl: href || '',
+          arg: text,
+          mods: {
+            'cmd+alt+shift': {
+              subtitle: '⌘⌥⇧: DELETE permanently',
+              icon: { path: './delete.png' },
+              variables: { action: 'delete', items: parsedItem, file_path: filePath },
+            },
+            'shift': {
+              subtitle: isCheckbox ? '⇧: Convert to plain item' : '⇧: Convert to checkbox item',
+              variables: { action: 'convert', items: parsedItem, file_path: filePath },
+            },
+          },
+          icon: { path: iconPath },
+          variables: {
+            action: href ? 'open' : 'search',
+            items: parsedItem,
+            file_path: filePath,
+          },
+        };
+
+        if (isCheckbox) {
+          currentItem.mods['cmd+shift'] = {
+            valid: true,
+            subtitle: isChecked ? '⌘⇧: Uncheck item' : '⌘⇧: Check item',
+            variables: { action: 'toggle', items: parsedItem, file_path: filePath },
+          };
+        }
+
+        items.push(currentItem);
+      });
+    }
+  }
+
+  items.push({
+    title: 'Create new list',
+    icon: { path: './create-new.png' },
+    mods: {
+      cmd: { subtitle: '', valid: false, arg: '' },
+      shift: { subtitle: '', valid: false, arg: '' },
+      'cmd+shift': { subtitle: '', valid: false, arg: '' },
+      'cmd+alt+shift': { subtitle: '', valid: false, arg: '' },
+    },
+    variables: { list_action: 'create' },
+  });
+
+  return JSON.stringify({ skipknowledge: true, items: items });
+}</string>
 				<key>scriptargtype</key>
-				<integer>0</integer>
+				<integer>1</integer>
 				<key>scriptfile</key>
 				<string></string>
 				<key>skipuniversalaction</key>
@@ -1520,7 +1582,7 @@ printf ']}'</string>
 				<key>title</key>
 				<string>Bookmarks</string>
 				<key>type</key>
-				<integer>0</integer>
+				<integer>7</integer>
 				<key>withspace</key>
 				<true/>
 			</dict>
@@ -2834,7 +2896,7 @@ Workflow that helps you manage your links and quick search notes.
 		</dict>
 	</array>
 	<key>version</key>
-	<string>1.0.1</string>
+	<string>1.0.2</string>
 	<key>webaddress</key>
 	<string>https://github.com/derhally/alfred-bookmarks</string>
 </dict>
