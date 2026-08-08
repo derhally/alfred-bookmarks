@@ -739,6 +739,9 @@
 				<key>script</key>
 				<string>#!/bin/bash
 
+# A quoted "${folder_path}" never tilde-expands, so do it by hand.
+folder_path="${folder_path/#\~/$HOME}"
+
 if [ "$action" != "add" ]; then
   IFS=$'\n'
 
@@ -1138,6 +1141,9 @@ printf '{"alfredworkflow": {"arg": "", "variables": {"page_title": "%s", "files_
 				<key>script</key>
 				<string>#!/bin/bash
 
+# A quoted "${folder_path}" never tilde-expands, so do it by hand.
+folder_path="${folder_path/#\~/$HOME}"
+
 IFS=$'\n'
 
 files=($(ls "${folder_path}"/*.json 2&gt;/dev/null))
@@ -1469,8 +1475,12 @@ printf '{ "alfredworkflow": { "arg": "", "variables": { "items": "%s" } } }' "$i
 
   const fm = $.NSFileManager.defaultManager;
 
+  // Expand once: NSString file APIs do not resolve a leading tilde, and the
+  // paths built here are handed downstream as file_path for read and write.
+  var folderDir = $(folderPath).stringByExpandingTildeInPath.js;
+
   // User icons live next to the lists so they outlive the cache and Alfred itself.
-  var iconsDir = $(folderPath).stringByExpandingTildeInPath.js + '/icons';
+  var iconsDir = folderDir + '/icons';
 
   function lookupIcon(name) {
     if (!name) return null;
@@ -1505,14 +1515,13 @@ printf '{ "alfredworkflow": { "arg": "", "variables": { "items": "%s" } } }' "$i
   try { showChecked = $.getenv('show_checked') === 'true'; } catch (e) {}
 
   var items = [];
-  var nsPath = $(folderPath).stringByExpandingTildeInPath;
-  var contents = fm.contentsOfDirectoryAtPathError(nsPath, null);
+  var contents = fm.contentsOfDirectoryAtPathError(folderDir, null);
   if (contents) {
     for (var i = 0; i &lt; contents.count; i++) {
       var filename = contents.objectAtIndex(i).js;
       if (!filename.endsWith('.json')) continue;
       var listName = filename.replace(/\.json$/, '');
-      var filePath = folderPath + '/' + filename;
+      var filePath = folderDir + '/' + filename;
 
       var fileContent = $.NSString.stringWithContentsOfFileEncodingError(filePath, $.NSUTF8StringEncoding, null);
       if (!fileContent) continue;
@@ -1634,6 +1643,9 @@ printf '{ "alfredworkflow": { "arg": "", "variables": { "items": "%s" } } }' "$i
 				<integer>103</integer>
 				<key>script</key>
 				<string>#!/bin/bash
+
+# A quoted "${folder_path}" never tilde-expands, so do it by hand.
+folder_path="${folder_path/#\~/$HOME}"
 
 echo '[]' &gt; "${folder_path}/${1}.json"</string>
 				<key>scriptargtype</key>

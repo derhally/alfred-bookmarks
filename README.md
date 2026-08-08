@@ -9,7 +9,7 @@ The main idea of Bookmark Vault is to have all your bookmarks locally on your co
 After installing the workflow you should specify the working folder in workflow configuration:
 ![Configuration](./configuration.png)
 
-Bookmark Vault will scan this folder and treat each .md file as a list. If for some reason you will delete Bookmarks or even Alfred, your once created lists will still stay with you.
+Bookmark Vault will scan this folder and treat each .json file as a list. If for some reason you will delete Bookmarks or even Alfred, your once created lists will still stay with you.
 
 ## Usage
 `bk` to see your lists.
@@ -45,6 +45,29 @@ Use `⌘C` shortcut to copy item text or URL if it's a link.
 Bookmark Vault will try to present URLs in a convenient way. If it's possible to get page's title (by fetching the page), it will be shown as an item title. You can also specify it manually by formatting link in Markdown format. For example adding `[Transport Museum](https://www.ltmuseum.co.uk/)` as an argument to `bkadd` command will later be represented with a title and URL:
 
 ![Markdown link](./markdown-link.png)
+
+## Icons
+When you add a link, Bookmark Vault fetches that site's favicon in the background and caches it, so most bookmarks get a recognisable icon for free.
+
+You can override any of them, or supply one where no favicon exists. Create an `icons` folder inside your working folder and drop PNGs in it:
+
+```
+~/Documents/BookmarkVault/
+├── icons/
+│   ├── github.com.png
+│   └── grafana.png
+├── work.json
+└── reading.json
+```
+
+A file is matched by name, without the `.png`, in this order:
+
+1. The item's `icon` field, if the list entry has one — `"icon": "grafana"` uses `icons/grafana.png`.
+2. The link's domain — `icons/github.com.png` applies to every `github.com` bookmark you have.
+
+Your folder is always checked before the fetched cache, so a PNG you put there wins over whatever was downloaded. Items with no match fall back to a generic link icon.
+
+Keeping icons here rather than in Alfred's cache means they are yours: the cache can be purged at any time, and Alfred erases a workflow's data folder when you remove the workflow, but your working folder survives both — along with the lists it sits beside.
 
 Happy bookmarking!
 
