@@ -1469,20 +1469,32 @@ printf '{ "alfredworkflow": { "arg": "", "variables": { "items": "%s" } } }' "$i
 
   const fm = $.NSFileManager.defaultManager;
 
+  // User icons live next to the lists so they outlive the cache and Alfred itself.
+  var iconsDir = $(folderPath).stringByExpandingTildeInPath.js + '/icons';
+
+  function lookupIcon(name) {
+    if (!name) return null;
+    var userPath = iconsDir + '/' + name + '.png';
+    if (fm.fileExistsAtPath(userPath)) return userPath;
+    if (cacheDir) {
+      var cachePath = cacheDir + '/favicons/' + name + '.png';
+      if (fm.fileExistsAtPath(cachePath)) return cachePath;
+    }
+    return null;
+  }
+
   function resolveIconPath(item) {
     if (item.checked !== undefined) {
       return item.checked ? './checked.png' : './unchecked.png';
     }
-    if (item.icon &amp;&amp; cacheDir) {
-      var faviconPath = cacheDir + '/favicons/' + item.icon + '.png';
-      if (fm.fileExistsAtPath(faviconPath)) return faviconPath;
-    }
+    var found = lookupIcon(item.icon);
+    if (found) return found;
     if (item.url) {
       var stripped = item.url.replace(/^https?:\/\//, '').replace(/^[^@]*@/, '');
       var match = stripped.match(/^([a-zA-Z0-9.-]+)/);
-      if (match &amp;&amp; cacheDir) {
-        var domainFavicon = cacheDir + '/favicons/' + match[1] + '.png';
-        if (fm.fileExistsAtPath(domainFavicon)) return domainFavicon;
+      if (match) {
+        found = lookupIcon(match[1]);
+        if (found) return found;
       }
       return './link.png';
     }
@@ -2179,12 +2191,15 @@ rm "{query}"</string>
     cacheDir = $.getenv('alfred_workflow_cache');
   } catch (e) {}
 
-  var dataDir = '';
+  var folderPath = '';
   try {
-    dataDir = $.getenv('alfred_workflow_data');
+    folderPath = $.getenv('folder_path');
   } catch (e) {}
 
   const fm = $.NSFileManager.defaultManager;
+
+  // User icons live next to the lists so they outlive the cache and Alfred itself.
+  var iconsDir = folderPath ? $(folderPath).stringByExpandingTildeInPath.js + '/icons' : '';
 
   function extractDomain(href) {
     var stripped = href.replace(/^https?:\/\//, '');
@@ -2193,36 +2208,41 @@ rm "{query}"</string>
     return match ? match[1] : null;
   }
 
+  // User folder wins over the cache, so a hand-picked icon beats a fetched favicon.
+  function lookupIcon(name) {
+    if (!name) {
+      return null;
+    }
+    if (iconsDir) {
+      var userPath = iconsDir + '/' + name + '.png';
+      if (fm.fileExistsAtPath(userPath)) {
+        return userPath;
+      }
+    }
+    if (cacheDir) {
+      var cachePath = cacheDir + '/favicons/' + name + '.png';
+      if (fm.fileExistsAtPath(cachePath)) {
+        return cachePath;
+      }
+    }
+    return null;
+  }
+
   function resolveIconPath(item) {
     // 1. Checkbox items get check icons
     if (item.checked !== undefined) {
       return item.checked ? './checked.png' : './unchecked.png';
     }
     // 2. Custom icon field
-    if (item.icon) {
-      // Check cached favicon
-      if (cacheDir) {
-        var faviconPath = cacheDir + '/favicons/' + item.icon + '.png';
-        if (fm.fileExistsAtPath(faviconPath)) {
-          return faviconPath;
-        }
-      }
-      // Check custom icons directory
-      if (dataDir) {
-        var customPath = dataDir + '/icons/' + item.icon;
-        if (fm.fileExistsAtPath(customPath)) {
-          return customPath;
-        }
-      }
+    var found = lookupIcon(item.icon);
+    if (found) {
+      return found;
     }
-    // 3. URL items - try favicon cache by domain
+    // 3. URL items - try icon folder then favicon cache, by domain
     if (item.url) {
-      var domain = extractDomain(item.url);
-      if (domain &amp;&amp; cacheDir) {
-        var domainFavicon = cacheDir + '/favicons/' + domain + '.png';
-        if (fm.fileExistsAtPath(domainFavicon)) {
-          return domainFavicon;
-        }
+      found = lookupIcon(extractDomain(item.url));
+      if (found) {
+        return found;
       }
       return './link.png';
     }
@@ -2896,7 +2916,7 @@ Workflow that helps you manage your links and quick search notes.
 		</dict>
 	</array>
 	<key>version</key>
-	<string>1.0.2</string>
+	<string>1.0.3</string>
 	<key>webaddress</key>
 	<string>https://github.com/derhally/alfred-bookmarks</string>
 </dict>
